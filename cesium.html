@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+  <meta charset="utf-8">
+
+  <!-- Include the CesiumJS JavaScript and CSS files -->
+
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.124/Build/Cesium/Cesium.js"></script>
+
+  <link href="https://cesium.com/downloads/cesiumjs/releases/1.124/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+
+  <style>
+    /* Pastikan margin dan padding pada html dan body diatur ke nol */
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+      overflow: hidden; /* Mencegah scroll */
+    }
+
+    /* Pastikan elemen #cesiumContainer mengisi layar penuh */
+    #cesiumContainer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+     /* CSS untuk toolbox */
+     #toolbox {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 100;
+      background-color: rgba(255, 255, 255, 0.8);
+      padding: 10px;
+      border-radius: 5px;
+      box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    #toolbox button {
+      margin: 5px 0;
+      padding: 8px 15px;
+      border: none;
+      border-radius: 3px;
+      background-color: #0078d7;
+      color: white;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    #toolbox button:hover {
+      background-color: #005a9e;
+    }
+  </style>
+
+</head>
+
+<body>
+
+  <div id="cesiumContainer"></div>
+  <div id="toolbox">
+    <h3>Camera Options</h3>
+    <button id="viewEiffel"> Jembatan</button>
+    <button id="viewRome">Tampak Atas</button>
+    <button id="viewJembatan">Tampak Samping</button>
+  </div>
+
+  <script type="module">
+    // Your access token can be found at: https://ion.cesium.com/tokens.
+    // This is the default access token from your ion account
+
+
+    Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJhZGY2Yzg1Ni05NDgyLTQwYTgtOGFlZi0yOWJjZDZjYjZhMzYiLCJpZCI6MTgzNDAwLCJpYXQiOjE3MzI5MDMyMDJ9.AVhUMnLfAn-c4jLZl1mtOyY8F2M0qBGzo0jqAeHhItA';
+
+    // Initialize the Cesium Viewer in the HTML element with the `cesiumContainer` ID.
+    const viewer = new Cesium.Viewer('cesiumContainer', {
+      timeline: false,
+      animation: false,
+      sceneModePicker: false,
+      globe: false,
+    });    
+
+    // Add Photorealistic 3D Tiles
+let globalTileset;
+try {
+  globalTileset = await Cesium.createGooglePhotorealistic3DTileset();
+  viewer.scene.primitives.add(globalTileset);
+} catch (error) {
+  console.log(`Error loading Photorealistic 3D Tiles tileset.
+  ${error}`);
+}
+
+    // Fly the camera to San Francisco at the given longitude, latitude, and height.
+    viewer.camera.flyTo({
+      destination: Cesium.Cartesian3.fromDegrees(110.37057585000721, -7.763731892199984 , 5), //-7.762950550408103, 110.37054366344617; -7.763731892199984, 110.37057585000721
+      orientation: {
+        heading: Cesium.Math.toRadians(0.0),
+        pitch: Cesium.Math.toRadians(-15.0),
+      }
+    });
+
+    // Load a GeoJSON file with positions defining the project footprint
+let footprint;
+try {
+          const resource = await Cesium.IonResource.fromAssetId(2904932);
+          const dataSource = await Cesium.GeoJsonDataSource.load(resource, {
+            clampToGround: true,
+});
+
+     viewer.dataSources.add(dataSource);
+
+     footprint = dataSource.entities.values.find((entity) =>
+     		Cesium.defined(entity.polygon)
+     );
+     footprint.polygon.outline = false;
+
+      // Zoom to data location, and set the home view
+      const cameraOffset = new Cesium.HeadingPitchRange(
+     		Cesium.Math.toRadians(0.0),
+     		Cesium.Math.toRadians(-30.0),
+           0.0
+      );
+      viewer.zoomTo(footprint, cameraOffset);          viewer.homeButton.viewModel.command.beforeExecute.addEventListener(
+            (e) => {
+              e.cancel = true;
+              viewer.zoomTo(footprint, cameraOffset);
+            }
+        );
+        } catch (error) {
+        console.log(`Error loading geojson. ${error}`);
+        }
+
+      // Hide footprint
+footprint.show = false;
+
+// Add clipping polygons based on the loaded footprint polygon
+const positions = footprint.polygon.hierarchy.getValue().positions;
+const clippingPolygons = new Cesium.ClippingPolygonCollection({
+  polygons: [
+    new Cesium.ClippingPolygon({
+      positions: positions,
+    }),
+  ],
+});
+
+// Add the clipping polygon collection to the global tileset
+globalTileset.clippingPolygons = clippingPolygons;
+
+// Add tileset of proposed new road
+let buildingTileset;
+try {
+  buildingTileset = await Cesium.Cesium3DTileset.fromIonAssetId(
+    2922444
+  );
+  viewer.scene.primitives.add(buildingTileset);
+} catch (error) {
+  console.log(`Error loading building tileset.
+  ${error}`);
+}
+
+      // Fungsi untuk mengatur kamera
+      function flyToEiffelTower() {
+        viewer.camera.flyTo({
+          destination: Cesium.Cartesian3.fromDegrees(110.3702363693, -7.7625694123, 193.553776239), // Longitude, Latitude, Height (in meters)
+          orientation: {
+            heading: Cesium.Math.toRadians(90.0), // Rotation (0: North)
+            pitch: Cesium.Math.toRadians(-30.0), // Tilt (0: Horizontal)
+            roll: 0.0, // No roll
+          },
+        });
+      }
+
+      function flyToRome() {
+        viewer.camera.flyTo({
+          destination: Cesium.Cartesian3.fromDegrees(110.3700068635,  -7.7580554397, 500), // Longitude, Latitude, Height
+          orientation: {
+            heading: Cesium.Math.toRadians(180.0),
+            pitch: Cesium.Math.toRadians(-30.0),
+            roll: 0.0,
+          },
+        });
+      }
+
+      function flyToJem() {
+        viewer.camera.flyTo({
+          destination: Cesium.Cartesian3.fromDegrees(110.37075000, -7.76370833, 170), // Longitude, Latitude, Height
+          orientation: {
+            heading: Cesium.Math.toRadians(356.0),
+            pitch: Cesium.Math.toRadians(0.0),
+            roll: 0.0,
+          },
+        });
+      }
+
+      // Event listener untuk tombol toolbox
+      document.getElementById("viewEiffel").addEventListener("click", flyToEiffelTower);
+      document.getElementById("viewRome").addEventListener("click", flyToRome);
+      document.getElementById("viewJembatan").addEventListener("click", flyToJem);
+
+    // Add Cesium OSM Buildings, a global 3D buildings layer.
+    // const buildingTileset = await Cesium.createOsmBuildingsAsync();
+    // viewer.scene.primitives.add(buildingTileset);   
+
+  </script>
+
+</body>
+
+</html>
